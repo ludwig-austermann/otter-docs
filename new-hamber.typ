@@ -56,7 +56,7 @@
   out
 }
 
-#let footer-renderer(final-tree, current) = html.footer(
+#let footer-renderer(final-tree, current, page-footer) = html.footer(
   class: "mt-8 grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4",
   {
     // TODO: change this to dictionary based
@@ -80,13 +80,11 @@
         link(info.page-label, info.title),
       )
     }
-    html.span(class: "md:col-span-2 text-xs text-center")[
-      Powered by #link("https://github.com/wensimehrp/otter-docs")[Otter Docs]. Made in Vancouver with love.
-    ]
+    html.span(class: "md:col-span-2 text-xs text-center", page-footer)
   },
 )
 
-#let internal-html-renderer(final-tree, it) = html.div({
+#let internal-html-renderer(final-tree, it, nav-upper, nav-lower, page-footer) = html.div({
   import html: *
   let footnote-state = state(str(it.page-label) + " Footnote State", ())
   // discard auto generated footnote entries since we manually display them
@@ -107,16 +105,14 @@
   nav(
     class: "w-72 z-10 flex fixed left-0 top-0 h-full -translate-x-full shadow-sm md:shadow-none peer-checked:translate-x-0 md:translate-x-0 flex-col border-r border-neutral-300 bg-neutral-100 transition-transform",
     {
-      img(
-        class: "max-h-40 mx-auto my-5",
-        src: "https://upload.wikimedia.org/wikipedia/commons/3/36/WLE_Austria_Logo_%28transparent%29.svg",
-      )
+      nav-upper
       div(
         class: "border-t border-neutral-300 overflow-x-auto",
         {
           summary-renderer(final-tree, it)
         },
       )
+      nav-lower
     },
   )
   article(
@@ -141,7 +137,7 @@
         }))
       }
       // footer
-      footer-renderer(final-tree, it)
+      footer-renderer(final-tree, it, page-footer)
     },
   )
 })
@@ -213,6 +209,14 @@
   title: "",
   canonical-url: "",
   render-summary-image: true,
+  nav-upper: html.img(
+    class: "max-h-40 mx-auto my-5",
+    src: "https://upload.wikimedia.org/wikipedia/commons/3/36/WLE_Austria_Logo_%28transparent%29.svg",
+  ),
+  nav-lower: [],
+  page-footer: [Powered by #link("https://github.com/wensimehrp/otter-docs")[Otter Docs]. Made in Vancouver with love.],
+  extra-css: "",
+  extra-script: "",
   ..args,
 ) = {
   // first generate the tailwind preflight
@@ -226,7 +230,9 @@
       preflight: (full: (font_family_sans: "Cabin")),
     )))
       + bytes("\n")
-      + read("footnote.css", encoding: none),
+      + read("footnote.css", encoding: none)
+      + bytes("\n")
+      + bytes(extra-css),
   )
   // then generate html files
   show html.elem: update-elem.with(state: page-classes)
@@ -270,7 +276,8 @@
           meta(name: "twitter:domain", content: canonical-url.replace(regex("https?://"), ""))
           meta(name: "twitter:description", content: "...")
         })
-        internal-html-renderer(tree, it)
+        internal-html-renderer(tree, it, nav-upper, nav-lower, page-footer)
+        script(extra-script)
       })) #it.page-label
     ],
   )
