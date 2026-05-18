@@ -11,13 +11,13 @@
     if it.kind == "chapter" {
       html.div(
         class: "block w-full px-2 py-1".split(" ").map(it => "[&>a]:" + it).join(" "),
-        std.link(it.page-label, it.title),
+        context std.link(it.page-label, it.title.final()),
       )
       if it.page-label == current-chapter.page-label {
         html.div(
           class: " mx-2 border-t border-neutral-300 "
             + "px-2 py-1 block hover:bg-neutral-200".split(" ").map(it => "[&>a]:" + it).join(" "),
-          for label in it.headings {
+          context for label in it.headings.final() {
             std.link(label, query(label).at(0).body)
           },
         )
@@ -41,20 +41,21 @@
   )
 }
 
-#let flatten-tree(tree) = {
-  let out = ()
-  for it in tree {
-    let base = it
-    if "children" in base {
-      let _ = base.remove("children")
-      out.push(base)
-      out += flatten-tree(it.children)
+#let flatten-tree(tree) = (
+  tree
+    .map(node => if "children" in node {
+      (
+        (
+          ..node,
+          children: none,
+        ),
+        flatten-tree(node.children),
+      )
     } else {
-      out.push(base)
-    }
-  }
-  out
-}
+      node
+    })
+    .flatten()
+)
 
 #let footer-renderer(final-tree, current, page-footer) = html.footer(
   class: "mt-8 grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4",
@@ -70,14 +71,14 @@
       let info = flattened.at(current-idx - 1)
       html.div(
         class: link-classes,
-        link(info.page-label, info.title),
+        context link(info.page-label, info.title.final()),
       )
     }
     if current-idx < flattened.len() - 1 {
       let info = flattened.at(current-idx + 1)
       html.div(
         class: "md:col-start-2 text-right " + link-classes,
-        link(info.page-label, info.title),
+        context link(info.page-label, info.title.final()),
       )
     }
     html.span(class: "md:col-span-2 text-xs text-center", page-footer)
@@ -184,7 +185,7 @@
       )[
         #set text(size: 24pt)
         #text(site-title)\
-        #text(size: 2em, chapter.title)
+        #context text(size: 2em, chapter.title.final())
 
         #place(bottom)[
           Otter Docs is a pure Typst documentation framework.
@@ -252,7 +253,7 @@
           // Chore
           meta(charset: "utf-8")
           meta(name: "viewport", content: "width=device-width, initial-scale=1")
-          title(it.title)
+          context title(it.title.final())
           link(rel: "canonical", href: canonical-url + page-path-str)
           // TODO: finish description here
           meta(name: "description", content: "...")
@@ -263,7 +264,7 @@
           )
           // Open Graph SEO
           import "lib.typ": to-string
-          og-property("title", content: to-string("" + it.title))
+          context og-property("title", content: to-string("" + it.title.final()))
           og-property("description", content: to-string("" + [...]))
           og-property("type", content: "website")
           og-property("url", content: canonical-url + page-path-str)
@@ -272,7 +273,7 @@
             summary-image-renderer(it).og-properties
           }
           // Twitter SEO
-          meta(name: "twitter:title", content: to-string("" + it.title))
+          context meta(name: "twitter:title", content: to-string("" + it.title.final()))
           meta(name: "twitter:domain", content: canonical-url.replace(regex("https?://"), ""))
           meta(name: "twitter:description", content: "...")
         })

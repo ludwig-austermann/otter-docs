@@ -51,25 +51,27 @@
   }
 }
 
-#let normalize-tree(tree, root) = {
-  assert(type(tree) == array, message: "The tree argument must be an array. Maybe you forgot a comma?")
-  tree.map(it => {
-    if type(it) != dictionary or "kind" not in it {
-      it = (
-        kind: "other",
-        content: it,
-      )
-    }
-    let path-str = none
-    if "path" in it {
-      it.path = root + it.path
-      path-str = it.path.join("/")
-      it.insert("page-label", label("page:/" + path-str))
-    }
-    if it.kind == "chapter" {
-      let chapter-heading-state = state(path-str + " chapter state", ())
-      let chapter-title-state = state(path-str + " title state", none)
-      it.content = {
+#let normalize-tree(tree, root) = tree.map(it => {
+  if type(it) != dictionary or "kind" not in it {
+    (
+      kind: "other",
+      content: it,
+    )
+  } else if "path" not in it {
+    // TODO: what case is this? only subchapters?
+    panic("Not implemented non path dicts")
+  } else {
+    // TODO: only chapter?
+    let path-str = (root + it.path).join()
+    let chapter-heading-state = state(path-str + " chapter state", ())
+    let chapter-title-state = state(path-str + " title state", none)
+
+    (
+      ..it,
+      page-label: label("page:/" + path-str),
+      title: chapter-title-state,
+      headings: chapter-heading-state,
+      content: if it.kind == "chapter" {
         show heading.where(level: 1, outlined: true): head => {
           if "label" in head.fields() {
             chapter-heading-state.update(arr => arr + (head.label,))
@@ -84,16 +86,13 @@
           title
         }
         it.content
-      }
-      it.insert("title", chapter-title-state.final())
-      it.insert("headings", chapter-heading-state.final())
-    }
-    if "children" in it {
-      it = (..it, children: normalize-tree(it.children, root))
-    }
-    it
-  })
-}
+      },
+      children: if "children" in it {
+        normalize-tree(it.children, root)
+      },
+    )
+  }
+})
 
 #import "new-hamber.typ": html-renderer, paged-renderer
 
@@ -143,34 +142,38 @@
   /// Extra arguments that are passed to the renderers.
   /// -> any
   ..args,
-) = context {
+) = {
   let root = if type(root) == array { root } else { root.split("/").filter(it => it.len() > 0) }
   assert(type(authors) == array, message: "Authors must be an array of strings.")
+  assert(type(tree) == array, message: "The tree argument must be an array. Maybe you forgot a comma?")
   let normalized = normalize-tree(tree, root)
   // debug for testing the tree
   if debug { document(root.join("/") + "/__debug_tree.html", [#normalized]) }
-  if target() in ("paged",) {
-    panic("Paged export is suspended until https://github.com/typst/typst/pull/8250 is merged")
-    // paged-renderer(
-    //   normalized,
-    //   description: description,
-    //   authors: authors,
-    //   root: root,
-    //   language: language,
-    //   ..args,
-    // )
-  }
-  if target() in ("bundle",) {
-    html-renderer(
-      normalized,
-      title: title,
-      description: description,
-      canonical-url: canonical-url,
-      render-summary-image: render-summary-image,
-      authors: authors,
-      root: root,
-      language: language,
-      ..args,
-    )
+
+  context {
+    if target() in ("paged",) {
+      panic("Paged export is suspended until https://github.com/typst/typst/pull/8250 is merged")
+      // paged-renderer(
+      //   normalized,
+      //   description: description,
+      //   authors: authors,
+      //   root: root,
+      //   language: language,
+      //   ..args,
+      // )
+    }
+    if target() in ("bundle",) {
+      html-renderer(
+        normalized,
+        title: title,
+        description: description,
+        canonical-url: canonical-url,
+        render-summary-image: render-summary-image,
+        authors: authors,
+        root: root,
+        language: language,
+        ..args,
+      )
+    }
   }
 }
