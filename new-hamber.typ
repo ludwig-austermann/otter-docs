@@ -118,7 +118,7 @@
   )
   article(
     class: "p-3 sm:p-6 md:p-8 max-w-[52rem] md:ml-72 prose prose-neutral leading-normal prose-pre:bg-neutral-100 prose-pre:text-neutral-900 prose-pre:rounded-none font-[450]",
-    {
+    context {
       it.content
       // footnote
       let final = footnote-state.final()
@@ -146,9 +146,10 @@
 #let update-elem(elem, state: none) = {
   let classes = elem.fields().attrs.at("class", default: ())
   if type(classes) == array {
-    classes = classes.join(" ")
+    state.update(it => it + classes.map(c => (c, none)).to-dict())
+  } else {
+    state.update(it => it + ((classes, none),).to-dict())
   }
-  state.update(it => it + " " + classes)
   elem
 }
 
@@ -224,10 +225,10 @@
   let site-title = title
   import "@preview/typhoon:0.1.2"
   let stylesheet-path = "/" + (root, "styles.css").flatten().join("/")
-  let page-classes = state("__new_hamber page classes", "")
-  asset(
+  let page-classes = state("__new_hamber page classes", (:))
+  context asset(
     stylesheet-path,
-    typhoon._plugin.generate(bytes(page-classes.final()), cbor.encode((
+    typhoon._plugin.generate(bytes(page-classes.final().keys().join(" ")), cbor.encode((
       preflight: (full: (font_family_sans: "Cabin")),
     )))
       + bytes("\n")
